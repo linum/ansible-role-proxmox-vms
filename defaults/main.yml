@@ -3,7 +3,11 @@
 proxmox_vms_defaults:
   # Specify emulated CPU type.
   # 'host' uses the same cpu type as the host system
-  cpu: "host"
+  cpu: ''
+
+  vga: 'qxl'
+
+  agent: 'yes'
 
   # A hash/dictionary of network interfaces for the VM. net='{"key":"value", "key":"value"}'.
   # Keys allowed are - net[n] where 0 ≤ n ≤ N.
@@ -14,11 +18,13 @@ proxmox_vms_defaults:
   # It is specified as floating point number, unit is 'Megabytes per second'.
   net: '{"net0":"virtio,bridge=vmbr0"}'
 
+  # Specify number of sockets
+  sockets: '1'
   # Specify number of cores per socket.
   cores: '2'
 
   # Memory size in MB for instance.
-  memory_size: '2048'
+  memory_size: '1024'
 
   # Specify the amount of RAM for the VM in MB. Using zero disables the balloon driver.
   # The virtio balloon device allows KVM guests to reduce their memory size (thus relinquishing memory to the host) and
@@ -37,7 +43,7 @@ proxmox_vms_defaults:
   # storage is the storage identifier where to create the disk.
   # size is the size of the disk in GB.
   # format is the drive's backing file's data format. qcow2|raw|subvol
-  virtio: '{"virtio0":"local-lvm:10,cache=writeback,discard=on"}'
+  virtio: '{"virtio0":"local:10"}'
 
   # Specifies guest operating system. This is used to enable special optimization/features for specific operating systems.
   # The l26 is Linux 2.6/3.X Kernel.
@@ -53,11 +59,14 @@ proxmox_vms_defaults:
 
   # Specifies the name of the file which contains the deploy arguments for the vm. The arguments in it are attached
   # to the args variable of a vm (see 'create vms' in tasks/main.yml) and are used when installing an os on a vm.
-  deploy_args_template: 'deploy-args-ubuntu-template.j2'
+  deploy_args_template: 'deploy-args-generic.j2'
 
   # Specifies the name of the template preseed file, which will be taken if the definition of the vm in the playbook
   # has no preseed path.
-  preseed_template: 'ubuntu-template.seed'
+  preseed_template: 'generic-template.seed'
 
   # Specifies the ubuntu distribution which will be installed on the vm.
-  ubuntu_distribution: 'bionic'
+  #linux_distribution: 'ubuntu'
+  #linux_release: 'bionic'
+  linux_distribution: 'debian'
+  linux_release: 'buster'

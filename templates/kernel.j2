@@ -1,2 +1,2 @@
--kernel /tmp/{{ distributions[item.key] }}-kernel
+-kernel /tmp/{{ distributions[item.key] }}/{{ releases[item.key] }}-kernel
  -initrd /tmp/{{ item.key }}-initrd.gz

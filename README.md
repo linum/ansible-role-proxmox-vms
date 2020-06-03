@@ -2,23 +2,39 @@ Ansible Role: Create virtual machines with Proxmox and install (unattended) Ubun
 =========
 
 The inoxio.proxmox_vms role creates all VMs that are listed within
-your role execution (see example playbook) and installs Ubuntu versions via preseeding on them. You can configure which Ubuntu version shall be installed on which VM.
+your role execution (see example playbook) and installs Debian/Ubuntu
+versions via preseeding on them. You can configure which Debian/Ubuntu
+version shall be installed on which VM.
 
-This role was developed based on [morph027's pve-infra-poc role](https://gitlab.com/morph027/pve-infra-poc).
+This role was developed based on [morph027's pve-infra-poc
+role](https://gitlab.com/morph027/pve-infra-poc).
 
-The main.yml in the 'default' directory contains default values for the VMs. 
+The main.yml in the 'default' directory contains default values for
+the VMs.
 
-The main.yml of the 'tasks' directory contains all tasks to create virtual machines and to install the operating system. 
-At first the VMs will be created. After that the tasks for preparing the OS installations will start. 
-The newest netboot version of the given Ubuntu version will be fetched and unzipped to get the initrd and kernel.
-Then the preseed file and finish-installation-script will be moved into the initrd and packed afterwards.
-After that the installation begins and the installation-arguments will be deleted 
-(in order to start the installed OS after the next reboot).
-The VMs will be rebooted after finishing all installations and a success message will be displayed when reboot
-was successful (by polling the IP of the VM and searching for 'OpenSSH').
+The main.yml of the 'tasks' directory contains all tasks to create
+virtual machines and to install the operating system.  At first the
+VMs will be created. After that the tasks for preparing the OS
+installations will start.  The newest netboot version of the given
+Ubuntu version will be fetched and unzipped to get the initrd and
+kernel.  Then the preseed file and finish-installation-script will be
+moved into the initrd and packed afterwards.  After that the
+installation begins and the installation-arguments will be deleted (in
+order to start the installed OS after the next reboot).  The VMs will
+be rebooted after finishing all installations and a success message
+will be displayed when reboot was successful (by polling the IP of the
+VM and searching for 'OpenSSH').
 
-The files for the preseed installation (netboot image, kernel and initrd) and the Proxmoxer module will be copied to
-the host machine. If you want to use multiple nodes on the host machine, all nodes will get these files.
+The files for the preseed installation (netboot image, kernel and
+initrd) and the Proxmoxer module will be copied to the host
+machine. If you want to use multiple nodes on the host machine, all
+nodes will get these files.
+
+This version is deeply integrated with the debops ansible
+Framework. It will automatically create an randomized Ansible User
+account and stores the information in
+ansible/inventory/host_vats/<hostname>/ansible-config.yml. The ssh
+private key is stored at ansible/secret/credentials/<hostname>/ansi.
 
 Requirements
 ------------
@@ -163,40 +179,53 @@ Add new Ubuntu distribution
 ------------
 
 To add a new Ubuntu distribution you have the following options:
-* You can add the deploy-args file in templates directory. E.g. deploy-args-cosmic.j2. But this is optional.
-The role tries to find a deploy-args file named like the given distribution name and if it can't find it the default
-preseed file will be taken.
-* You can add preseed-file in files directory. E.g. ubuntu-cosmic.seed. But this is optional.
-The role tries to find a preseed file named like the given distribution name and if it can't find it the default
-preseed file will be taken.
+
+* You can add the deploy-args file in templates
+  directory. E.g. deploy-args-cosmic.j2. But this is optional. The
+  role tries to find a deploy-args file named like the given
+  distribution name and if it can't find it the default preseed file
+  will be taken.
+
+* You can add preseed-file in files
+  directory. E.g. ubuntu-cosmic.seed. But this is optional. The role
+  tries to find a preseed file named like the given distribution name
+  and if it can't find it the default preseed file will be taken.
 
 Deploy Arguments
 ------------
 
-The deploy-args-file delivers necessary settings for an unattended Ubuntu installation.
-These settings could be delivered by the preseed-file itself, but since the deploy-args file is a Jinja2 file (see 
-Jinja2 documentation: http://jinja.pocoo.org/docs/2.10/) you can code which settings should be used for given
-parameters. You can also include other files. And use Ansible variables to make the settings dependending on the VM
-definition. E.g. locale={{ item.value.locale }}.UTF-8. If the local is en_US, Jinja2 replaces it to 
+The deploy-args-file delivers necessary settings for an unattended
+Ubuntu installation. These settings could be delivered by the
+preseed-file itself, but since the deploy-args file is a Jinja2 file
+(see Jinja2 documentation: http://jinja.pocoo.org/docs/2.10/) you can
+code which settings should be used for given parameters. You can also
+include other files. And use Ansible variables to make the settings
+dependending on the VM definition. E.g. locale={{ item.value.locale
+}}.UTF-8. If the local is en_US, Jinja2 replaces it to
 locale=en_US.UTF-8
 
 Preseed File
 ------------
 
-The preseed-file contains settings for a unattended installation of an Ubuntu distribution. E.g. information how the disk
-should be partitioned, which user should be created and so on. It contains a section for late-commands. These are
-commands that will be executed when the installation is done and will be executed in the installed os itself. The
-late-commands can be delivered in a shell-script.
+The preseed-file contains settings for a unattended installation of an
+Ubuntu distribution. E.g. information how the disk should be
+partitioned, which user should be created and so on. It contains a
+section for late-commands. These are commands that will be executed
+when the installation is done and will be executed in the installed os
+itself. The late-commands can be delivered in a shell-script.
 
 Finish-installation
 ------------
 
-The finish-installation-template will be executed when the OS installation is finished. It can be used for example 
-to install packages or transfer SSH-keys. The file is a Jinja2 template file and will add additional packages, which
-are stated in the VM definition, and it adds scripts, which can also be stated in the VM definition.
+The finish-installation-template will be executed when the OS
+installation is finished. It can be used for example to install
+packages or transfer SSH-keys. The file is a Jinja2 template file and
+will add additional packages, which are stated in the VM definition,
+and it adds scripts, which can also be stated in the VM definition.
 
 Testing
 ------------
 
-Automatic testing this role is difficult because you need a VM with Proxmox on it which creates the VMs within the VM itself.
-Thus a hypervisor is needed which supports nested virtualization. 
+Automatic testing this role is difficult because you need a VM with
+Proxmox on it which creates the VMs within the VM itself. Thus a
+hypervisor is needed which supports nested virtualization.

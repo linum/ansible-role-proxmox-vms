@@ -1,21 +1,19 @@
 {% include 'kernel.j2' %}
  -append "preseed/file=/preseed.cfg
  debian-installer/allow_unauthenticated_ssl=true
- locale={{ item.value.locale }}.UTF-8
+ locale={{ item.value.locale | default(proxmox_vms_defaults.locale) }}.UTF-8
  debian/priority=critical
  vga=normal
- debian-installer/keymap={{ item.value.locale[:2] }}
- console-keymaps-at/keymap={{ item.value.locale[:2] }}
+ debian-installer/keymap={{ (item.value.locale | default(proxmox_vms_defaults.locale))[:2] }}
+ console-keymaps-at/keymap={{ (item.value.locale | default(proxmox_vms_defaults.locale))[:2] }}
  console-setup/ask_detect=false
- console-setup/layoutcode={{ item.value.locale }}
+ console-setup/layoutcode={{ item.value.locale | default(proxmox_vms_defaults.locale) }}
  keyboard-configuration/ask_detect=false
- keyboard-configuration/layoutcode={{ item.value.locale }}
+ keyboard-configuration/layoutcode={{ item.value.locale | default(proxmox_vms_defaults.locale) }}
  netcfg/choose_interface=auto
  localechooser/translation/warn-light=true
  localechooser/translation/warn-severe=true
  netcfg/get_hostname={{ item.key }}
- passwd/root-password={{ item.value.root_password }}
- passwd/root-password-again={{ item.value.root_password }}
 {% if item.value.network is defined %}
 {% if item.value.network.domainname is defined %}
  netcfg/get_domain={{ item.value.network.domainname }}
@@ -36,3 +34,4 @@
  netcfg/get_domain=localdomain
 {% endif %}
  FRONTEND_BACKGROUND=original"
+

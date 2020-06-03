@@ -12,7 +12,11 @@ d-i debconf/priority                                string      critical
 d-i time/zone                                       string      Europe/Berlin
 
 # package management
-d-i mirror/http/hostname                            string      archive.ubuntu.com
+d-i mirror/http/hostname                            string      approx.dmz.linum.com
+d-i mirror/http/mirror				    select	approx.dmz.linum.com
+d-i mirror/country				    string	manual
+d-i mirror/http/directory			    string	/ubuntu/
+d-i mirror/http/proxy				    string
 
 # partitioning
 # crypto (instead of regular) for encryption

@@ -1,0 +1,130 @@
+#
+# Preseed file for an automatic generic bionic installation.
+#
+# This will complete a standard full-disk installation. Everything on one
+# partition.
+#
+
+# the installation system will display only critical messages and try to do the right thing without fuss
+d-i debconf/priority                                string      critical
+
+# Preseeding only locale sets language, country and locale.
+d-i debian-installer/locale string de_DE
+
+# Keyboard selection.
+d-i keyboard-configuration/xkb-keymap select de
+# d-i keyboard-configuration/toggle select No toggling
+
+# time-zone
+#d-i time/zone                                       string      Europe/Berlin
+
+# package management
+#d-i mirror/http/hostname                           string      approx.example.com
+#d-i mirror/http/mirror				    select	approx.example.com
+#d-i mirror/country				    string	manual
+#d-i mirror/http/directory			    string	/debian/
+#d-i mirror/http/proxy				    string
+
+### Partitioning
+## Partitioning example
+# https://askubuntu.com/questions/1087351/partman-auto-expert-recipe-with-swap-calculation-during-preseed
+
+# Alternatively, you may specify a disk to partition. If the system has only
+# one disk the installer will default to using that, but otherwise the device
+# name must be given in traditional, non-devfs format (so e.g. /dev/sda
+# and not e.g. /dev/discs/disc0/disc).
+# For example, to use the first SCSI/SATA hard disk:
+d-i partman-auto/disk string /dev/sda
+
+d-i partman/alignment string optimal
+
+# In addition, you'll need to specify the method to use.
+# The presently available methods are:
+# - regular: use the usual partition types for your architecture
+# - lvm:     use LVM to partition the disk
+# - crypto:  use LVM within an encrypted partition
+d-i partman-auto/method string regular
+
+# If one of the disks that are going to be automatically partitioned
+# contains an old LVM configuration, the user will normally receive a
+# warning. This can be preseeded away...
+d-i partman-lvm/device_remove_lvm boolean true
+# And the same goes for the confirmation to write the lvm partitions.
+d-i partman-lvm/confirm boolean true
+d-i partman-lvm/confirm_nooverwrite boolean true
+d-i partman-lvm/device_remove_lvm_span boolean true
+
+# The same applies to pre-existing software RAID array:
+d-i partman-md/device_remove_md boolean true
+
+# https://superuser.com/questions/458672/ubuntu-preseed-use-whole-disk-space-but-no-swap/920957
+d-i partman-basicfilesystems/no_swap boolean false
+
+# You can choose one of the three predefined partitioning recipes:
+# - atomic: all files in one partition
+# - home:   separate /home partition
+# - multi:  separate /home, /var, and /tmp partitions
+d-i partman-auto/choose_recipe select regular
+d-i partman-auto/expert_recipe string root :: 2048 50 -1 ext4 \
+        $primary{ } $bootable{ } method{ format } \
+        format{ } use_filesystem{ } filesystem{ ext4 } \
+        mountpoint{ / } \
+    .									
+
+d-i partman-auto/choose_recipe select root
+
+# This makes partman automatically partition without confirmation.
+d-i partman/confirm boolean true
+d-i partman/confirm_nooverwrite boolean true
+d-i partman/confirm_write_new_label boolean true
+d-i partman-partitioning/confirm_write_new_label boolean true
+d-i partman/choose_partition select finish
+
+
+
+# Dies ist eine ziemlich sichere Einstellung; sie bewirkt, dass grub
+# automatisch in den MBR installiert wird, wenn kein anderes Betriebssystem
+# erkannt wird:
+d-i grub-installer/only_debian boolean true
+# Aufgrund von möglicherweise vorhandenen USB-Sticks kann der Speicherort
+# des MBR grundsätzlich nicht sicher erkannt werden, daher muss er
+# angegeben werden:
+#d-i grub-installer/bootdev  string /dev/sda
+# Um auf das erste verfügbare Gerät zu installieren (angenommen,
+# dies ist kein USB-Stick):
+d-i grub-installer/bootdev  string default
+
+# login
+d-i passwd/root-login                               boolean     true
+d-i user-setup/allow-password-weak                  boolean     true
+
+d-i preseed/include string preseed-useraccount.cfg
+
+# finish installation
+# avoid that last message about the install being complete
+d-i finish-install/reboot_in_progress               note
+# comment to next line to reboot instead (but this starts the installer again!)
+d-i debian-installer/exit/poweroff                  boolean     true
+
+### Package selection
+tasksel tasksel/first multiselect standard
+# Other packages to install
+d-i pkgsel/include string openssh-server
+d-i pkgsel/upgrade select full-upgrade
+popularity-contest popularity-contest/participate boolean false
+
+### Misc options
+# Disable that annoying WEP key dialog.
+d-i netcfg/wireless_wep string
+# Allow non-free firmware
+d-i hw-detect/load_firmware boolean true
+# Avoid that last message about the install being complete.
+d-i finish-install/reboot_in_progress note
+# During installations from serial console, the regular virtual consoles (VT1-VT6) are normally disabled in /etc/inittab.
+d-i finish-install/keep-consoles boolean true
+
+# This command is run just before the install finishes, but when there is
+# still a usable /target directory. You can chroot to /target and use it
+# directly, or use the apt-install and in-target commands to easily install
+# packages and run commands in the target system.
+d-i preseed/late_command string cp /finish-installation /target/ ; in-target /bin/bash /finish-installation

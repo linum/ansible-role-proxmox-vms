@@ -2,8 +2,9 @@
 
 - name: Check if deploy-args file exists
   stat:
-    path: "{{ role_path }}/templates/deploy-args-{{ item.value.ubuntu_distribution |
-    default(proxmox_vms_defaults.ubuntu_distribution) }}.j2"
+    path: "{{ role_path }}/templates/deploy-args-
+           {{ item.value.linux_distribution | default(proxmox_vms_defaults.linux_distribution) }}-
+           {{ item.value.linux_release      | default(proxmox_vms_defaults.linux_release) }}.j2"
   delegate_to: localhost
   become: false
   with_dict: "{{ vms }}"
@@ -17,8 +18,7 @@
 
 - name: Check if preseed file exists
   stat:
-    path: "{{ role_path }}/files/ubuntu-{{ item.value.ubuntu_distribution |
-    default(proxmox_vms_defaults.ubuntu_distribution) }}.seed"
+    path: "{{ role_path }}/files/{{ item.value.linux_distribution | default(proxmox_vms_defaults.linux_distribution) }}-{{ item.value.linux_release | default(proxmox_vms_defaults.linux_release) }}.seed"
   delegate_to: localhost
   become: false
   with_dict: "{{ vms }}"
@@ -32,8 +32,14 @@
 
 - name: Make a distribution list for shorter statements
   set_fact:
-    distributions: "{{ distributions | default({}) | combine( {item.key: item.value.ubuntu_distribution |
-                    default(proxmox_vms_defaults.ubuntu_distribution)} ) }}"
+    distributions: "{{ distributions | default({}) | combine( {item.key: item.value.linux_distribution |
+                    default(proxmox_vms_defaults.linux_distribution)} ) }}"
+  with_items: "{{ query('dict', vms) }}"
+
+- name: Make a releases list for shorter statements
+  set_fact:
+    releases: "{{ releases | default({}) | combine( {item.key: item.value.linux_release |
+                    default(proxmox_vms_defaults.linux_release)} ) }}"
   with_items: "{{ query('dict', vms) }}"
 
 - name: Create virtual machines
@@ -43,21 +49,24 @@
     api_host: "{{ proxmox.api_host }}"
     node: "{{ item.value.node }}"
     name: "{{ item.key }}"
+    vmid: "{{ item.value.vmid }}"
     net: "{{ item.value.net | default(proxmox_vms_defaults.net) }}"
     scsihw: "{{ item.value.scsihw | default(proxmox_vms_defaults.scsihw) }}"
     virtio: "{{ item.value.virtio | default(proxmox_vms_defaults.virtio) }}"
     cores: "{{ item.value.cores | default(proxmox_vms_defaults.cores) }}"
     memory: "{{ item.value.memory_size | default(proxmox_vms_defaults.memory_size) }}"
     balloon: "{{ item.value.balloon | default(proxmox_vms_defaults.balloon) }}"
-    vga: "qxl"
+    vga: "{{ item.value.vga | default(proxmox_vms_defaults.vga) }}"
     ostype: "{{ item.value.ostype | default(proxmox_vms_defaults.ostype) }}"
     # Look for deploy-args-file of the vm and remove all newlines. If not found take the
     # template-file and remove all newlines (all commands in one line). See ansible filter documentation.
     args: "{{ lookup('template', 'deploy-args-'~distributions[item.key]~'.j2'
               if deploy_file_exists_list[item.key] else proxmox_vms_defaults.deploy_args_template) |
               replace('\n', '') }}"
-    cpu: "{{ item.value.cpu | default(proxmox_vms_defaults.cpu) }}"
+    #cpu: "{{ item.value.cpu | default(proxmox_vms_defaults.cpu) }}"
     onboot: "{{ item.value.onboot | default(proxmox_vms_defaults.onboot) }}"
+    agent: "{{ item.value.agent | default(proxmox_vms_defaults.agent) }}"
+    serial: {"serial0":"socket"}
     state: present
   with_dict: "{{ vms }}"
   loop_control:
@@ -67,9 +76,14 @@
 
 - meta: flush_handlers
 
+#- name: Add rng device to KVM guest
+#  shell: qm set "{{ item.value.vmid }}" --rng0 --rng0 source=/dev/hwrng
+#  with_items: "{{ created_vms_pve.results }}"
+#  when: item is changed
+    
 - name: Create temporary directory for netboot image
   file:
-    path: /tmp/{{ distributions[item.item.key] }}
+    path: /tmp/{{ distributions[item.item.key] }}/{{ releases[item.item.key] }}
     state: directory
     mode: 0755
   with_items: "{{ created_vms_pve.results }}"
@@ -77,66 +91,89 @@
 
 - name: Download and unpack netboot image
   unarchive:
-    src: "http://archive.ubuntu.com/ubuntu/dists/{{ distributions[item.item.key] }}/\
-          main/installer-amd64/current/images/netboot/netboot.tar.gz"
-    dest: /tmp/{{ distributions[item.item.key] }}
+    src: "{{ lookup('template', 'netboot-url-'~distributions[item.item.key]~'-'~releases[item.item.key]~'.j2') | replace('\n', '') }}"
+    dest: "/tmp/{{ distributions[item.item.key] }}/{{ releases[item.item.key] }}"
     remote_src: yes
   with_items: "{{ created_vms_pve.results }}"
   when: item is changed
 
 - name: Move linux kernel file
   copy:
-    src: /tmp/{{ distributions[item.item.key] }}/ubuntu-installer/amd64/linux
-    dest: /tmp/{{ distributions[item.item.key] }}-kernel
+    src: "/tmp/{{ distributions[item.item.key] }}/{{ releases[item.item.key] }}/{{ distributions[item.item.key] }}-installer/amd64/linux"
+    dest: /tmp/{{ distributions[item.item.key] }}/{{ releases[item.item.key] }}-kernel
     remote_src: yes
   with_items: "{{ created_vms_pve.results }}"
   when: item is changed
 
 - name: Create temporary directory for initrd
   file:
-    path: /tmp/{{ distributions[item.item.key] }}/{{ item.item.key }}-initrd
+    path: /tmp/{{ distributions[item.item.key] }}/{{ releases[item.item.key] }}/{{ item.item.key }}-initrd
     state: directory
     mode: 0755
   with_items: "{{ created_vms_pve.results }}"
   when: item is changed
 
 - name: Unpack initrd
-  shell: zcat /tmp/{{ distributions[item.item.key] }}/ubuntu-installer/amd64/initrd.gz | cpio -id
+  shell: zcat /tmp/{{ distributions[item.item.key] }}/{{ releases[item.item.key] }}/{{ distributions[item.item.key] }}-installer/amd64/initrd.gz | cpio -id
   args:
-    chdir: /tmp/{{ distributions[item.item.key] }}/{{ item.item.key }}-initrd
+    chdir: /tmp/{{ distributions[item.item.key] }}/{{ releases[item.item.key] }}/{{ item.item.key }}-initrd
   with_items: "{{ created_vms_pve.results }}"
   when: item is changed
 
 - name: Copy preseed file
   copy:
-    src: "{{ 'files/ubuntu-'~distributions[item.item.key]~'.seed' if preseed_file_exists_list[item.item.key]
+    src: "{{ 'files/'~distributions[item.item.key]~'-'~releases[item.item.key]~'.seed' if preseed_file_exists_list[item.item.key]
     else proxmox_vms_defaults.preseed_template }}"
-    dest: /tmp/{{ distributions[item.item.key] }}/{{ item.item.key }}-initrd/preseed.cfg
+    dest: /tmp/{{ distributions[item.item.key] }}/{{ releases[item.item.key] }}/{{ item.item.key }}-initrd/preseed.cfg
   with_items: "{{ created_vms_pve.results }}"
   when: item is changed
 
+- name: Create host directory
+  connection: local
+  become: false
+  file:
+    path: "{{ inventory_dir }}/../secret/credentials/{{ item.item.key }}"
+    state: directory
+  with_items: "{{ created_vms_pve.results }}"
+  
+- name: Create random Ansible User Account name if missing
+  connection: local
+  become: false
+  template:
+    src: templates/ansible-randomize-username.j2
+    dest: "{{ inventory_dir }}/../secret/credentials/{{ item.item.key }}/user-ansible-name.txt"
+    force: no
+  with_items: "{{ created_vms_pve.results }}"
+  
+- name: Add create Ansible Account script
+  template:
+    src: templates/preseed-useraccount.j2
+    dest: /tmp/{{ distributions[item.item.key] }}/{{ releases[item.item.key] }}/{{ item.item.key }}-initrd/preseed-useraccount.cfg
+  with_items: "{{ created_vms_pve.results }}"
+  when: item is changed
+      
 - name: Build post installation script
   template:
     src: templates/finish-installation.j2
-    dest: /tmp/{{ distributions[item.item.key] }}/{{ item.item.key }}-initrd/finish-installation
+    dest: /tmp/{{ distributions[item.item.key] }}/{{ releases[item.item.key] }}/{{ item.item.key }}-initrd/finish-installation
   with_items: "{{ created_vms_pve.results }}"
   when: item is changed
 
 - name: Repack initrd
   shell: find . | cpio --create --format='newc' | gzip > /tmp/{{ item.item.key }}-initrd.gz
   args:
-    chdir: /tmp/{{ distributions[item.item.key] }}/{{ item.item.key }}-initrd
+    chdir: /tmp/{{ distributions[item.item.key] }}/{{ releases[item.item.key] }}/{{ item.item.key }}-initrd
   with_items: "{{ created_vms_pve.results }}"
   when: item is changed
 
 - name: Delete temporary directory
   file:
     state: absent
-    path: /tmp/{{ distributions[item.item.key] }}
+    path: /tmp/{{ distributions[item.item.key] }}/{{ releases[item.item.key] }}/
   with_items: "{{ created_vms_pve.results }}"
   when: item is changed
 
-- name: Start ubuntu setup
+- name: Start Linux setup
   proxmox_kvm:
     api_user: "{{ proxmox.api_user }}"
     api_password: "{{ proxmox.api_password }}"
@@ -150,7 +187,7 @@
 
 - meta: flush_handlers
 
-- name: Run ubuntu setup only once
+- name: Run Linux setup only once
   proxmox_kvm:
     api_user: "{{ proxmox.api_user }}"
     api_password: "{{ proxmox.api_password }}"
@@ -212,8 +249,64 @@
   with_items: "{{ created_vms_pve.results }}"
   when: item is changed
 
+- name: Create initial Ansible User Account SSH key(s)
+  connection: local
+  openssh_keypair:
+    path: "{{ inventory_dir }}/../secret/credentials/{{ item.item.key }}/ansi"
+    comment: Ansibe User Account
+    type: ed25519
+    #force: yes
+  with_items: "{{ created_vms_pve.results }}"
+  when: item is changed
+
+- name: Remove old SSH fingerprint from know hosts file
+  connection: local
+  command: /usr/bin/ssh-keygen -f "{{ lookup('env','HOME') }}/.ssh/known_hosts" -R "{{item.item.value.network.ip}}"
+  with_items: "{{ created_vms_pve.results }}"
+  when: item is changed
+
+- name: Remove old SSH fingerprint from know hosts file
+  connection: local
+  command: /usr/bin/ssh-keygen -f "{{ lookup('env','HOME') }}/.ssh/known_hosts" -R "{{item.item.key}}"
+  with_items: "{{ created_vms_pve.results }}"
+  when: item is changed
+
+- name: Copy Ansible Ansible User Account SSH key(s) to VM
+  connection: local
+  shell: /usr/bin/sshpass -e /usr/bin/ssh-copy-id  -o "StrictHostKeyChecking no" -i {{ inventory_dir }}/../secret/credentials/{{ item.item.key }}/ansi "{{ lookup('password', inventory_dir + '/../secret/credentials/' + item.item.key + '/user-ansible-name.txt') }}@{{item.item.value.network.ip}}"
+  environment:
+    SSHPASS: "{{ lookup('password', inventory_dir + '/../secret/credentials/{{ item.item.key }}/user-ansible-password.txt') }}"
+  with_items: "{{ created_vms_pve.results }}"
+  when: item is changed
+
+- name: Create target directory
+  connection: local
+  file:
+    path: "{{ inventory_dir }}/host_vars/{{ item.item.key }}"
+    state: directory
+    mode: '0755'
+  with_items: "{{ created_vms_pve.results }}"
+  when: item is changed
+  
+- name: Create a file to include to host inventory suited for debops
+  connection: local
+  become: false
+  template:
+    backup: yes
+    src: templates/inventory-vars.j2
+    dest: "{{ inventory_dir }}/host_vars/{{ item.item.key }}/ansible-config.yml"
+  with_items: "{{ created_vms_pve.results }}"
+  when: item is changed
+
+- name: Create a variable with contents of password template
+  connection: local
+  become: false
+  shell: "echo 'ansible_become_password: \"'{{ lookup('password', '{{ inventory_dir }}/../secret/credentials/{{ item.item.key }}/user-ansible-password.txt') }}'\"' | ansible-vault encrypt --output {{ inventory_dir }}/host_vars/{{ item.item.key }}/vault.yml"
+  with_items: "{{ created_vms_pve.results }}"
+  when: item is changed
+
 - name: Print success message
   debug:
-    msg: "The installation of {{ distributions[item.item.key] }} on {{ item.item.key }} was successful!"
+    msg: "The installation of {{ distributions[item.item.key] }} - {{ releases[item.item.key] }} on {{ item.item.key }} was successful!"
   with_items: "{{ created_vms_pve.results }}"
   when: item is changed

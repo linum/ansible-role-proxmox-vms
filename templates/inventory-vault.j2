@@ -1,0 +1,2 @@
+
+ansible_become_password: "{{ lookup('password', "{{ inventory_dir }}/../secret/credentials/{{ item.invocation.module_args.name }}/user-ansible-password.txt") }}"
