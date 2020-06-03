@@ -132,7 +132,7 @@
   connection: local
   become: false
   file:
-    path: "{{ inventory_dir }}/../secret/credentials/{{ item.item.key }}"
+    path: "{{ inventory_dir }}/../secret/credentials/{{ item.item.key }}/ansible_account"
     state: directory
   with_items: "{{ created_vms_pve.results }}"
   
@@ -141,7 +141,7 @@
   become: false
   template:
     src: templates/ansible-randomize-username.j2
-    dest: "{{ inventory_dir }}/../secret/credentials/{{ item.item.key }}/user-ansible-name.txt"
+    dest: "{{ inventory_dir }}/../secret/credentials/{{ item.item.key }}/ansible_account/username"
     force: no
   with_items: "{{ created_vms_pve.results }}"
   
@@ -252,7 +252,7 @@
 - name: Create initial Ansible User Account SSH key(s)
   connection: local
   openssh_keypair:
-    path: "{{ inventory_dir }}/../secret/credentials/{{ item.item.key }}/ansi"
+    path: "{{ inventory_dir }}/../secret/credentials/{{ item.item.key }}ansible_account/ssh-key"
     comment: Ansibe User Account
     type: ed25519
     #force: yes
@@ -273,9 +273,9 @@
 
 - name: Copy Ansible Ansible User Account SSH key(s) to VM
   connection: local
-  shell: /usr/bin/sshpass -e /usr/bin/ssh-copy-id  -o "StrictHostKeyChecking no" -i {{ inventory_dir }}/../secret/credentials/{{ item.item.key }}/ansi "{{ lookup('password', inventory_dir + '/../secret/credentials/' + item.item.key + '/user-ansible-name.txt') }}@{{item.item.value.network.ip}}"
+  shell: /usr/bin/sshpass -e /usr/bin/ssh-copy-id  -o "StrictHostKeyChecking no" -i {{ inventory_dir }}/../secret/credentials/{{ item.item.key }}/ansible_account/ssh-key "{{ lookup('password', inventory_dir + '/../secret/credentials/' + item.item.key + '/ansible_account/username') }}@{{item.item.value.network.ip}}"
   environment:
-    SSHPASS: "{{ lookup('password', inventory_dir + '/../secret/credentials/{{ item.item.key }}/user-ansible-password.txt') }}"
+    SSHPASS: "{{ lookup('password', inventory_dir + '/../secret/credentials/{{ item.item.key }}/ansible_account/password') }}"
   with_items: "{{ created_vms_pve.results }}"
   when: item is changed
 
@@ -301,7 +301,7 @@
 - name: Create a variable with contents of password template
   connection: local
   become: false
-  shell: "echo 'ansible_become_password: \"'{{ lookup('password', '{{ inventory_dir }}/../secret/credentials/{{ item.item.key }}/user-ansible-password.txt') }}'\"' | ansible-vault encrypt --output {{ inventory_dir }}/host_vars/{{ item.item.key }}/vault.yml"
+  shell: "echo 'ansible_become_password: \"'{{ lookup('password', '{{ inventory_dir }}/../secret/credentials/{{ item.item.key }}/ansible_account/password') }}'\"' | ansible-vault encrypt --output {{ inventory_dir }}/host_vars/{{ item.item.key }}/vault.yml"
   with_items: "{{ created_vms_pve.results }}"
   when: item is changed
 

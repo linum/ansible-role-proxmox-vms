@@ -1,4 +1,4 @@
-Ansible Role: Create virtual machines with Proxmox and install (unattended) Ubuntu distributions on them
+Ansible Role: Create virtual machines with Proxmox and install (unattended) Debian/Ubuntu distributions on them
 =========
 
 The inoxio.proxmox_vms role creates all VMs that are listed within
@@ -13,14 +13,14 @@ The main.yml in the 'default' directory contains default values for
 the VMs.
 
 The main.yml of the 'tasks' directory contains all tasks to create
-virtual machines and to install the operating system.  At first the
-VMs will be created. After that the tasks for preparing the OS
-installations will start.  The newest netboot version of the given
+virtual machines and to install the operating system. At first the VMs
+will be created. After that the tasks for preparing the OS
+installations will start. The newest netboot version of the given
 Ubuntu version will be fetched and unzipped to get the initrd and
-kernel.  Then the preseed file and finish-installation-script will be
-moved into the initrd and packed afterwards.  After that the
+kernel. Then the preseed file and finish-installation-script will be
+moved into the initrd and packed afterwards. After that the
 installation begins and the installation-arguments will be deleted (in
-order to start the installed OS after the next reboot).  The VMs will
+order to start the installed OS after the next reboot). The VMs will
 be rebooted after finishing all installations and a success message
 will be displayed when reboot was successful (by polling the IP of the
 VM and searching for 'OpenSSH').
@@ -30,8 +30,8 @@ initrd) and the Proxmoxer module will be copied to the host
 machine. If you want to use multiple nodes on the host machine, all
 nodes will get these files.
 
-This version is deeply integrated with the debops ansible
-Framework. It will automatically create an randomized Ansible User
+This version is deeply integrated with the debops Ansible
+Framework. It will automatically create a randomized Ansible User
 account and stores the information in
 ansible/inventory/host_vats/<hostname>/ansible-config.yml. The ssh
 private key is stored at ansible/secret/credentials/<hostname>/ansi.
@@ -175,10 +175,10 @@ Example playbook
 ```
 
 
-Add new Ubuntu distribution
+Add new Debian/Ubuntu distribution
 ------------
 
-To add a new Ubuntu distribution you have the following options:
+To add a new Debian/Ubuntu distribution you have the following options:
 
 * You can add the deploy-args file in templates
   directory. E.g. deploy-args-cosmic.j2. But this is optional. The

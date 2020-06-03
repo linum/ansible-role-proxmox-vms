@@ -1,5 +1,5 @@
 
 ansible_host:                 {{ item.item.value.network.ip }}
-ansible_user:                 {{ lookup('file', "{{ inventory_dir }}/../secret/credentials/{{ item.invocation.module_args.name }}/user-ansible-name.txt") }}
-ansible_ssh_private_key_file: "{% raw %}{{ inventory_dir }}{% endraw %}/../secret/credentials/{{ item.invocation.module_args.name }}/ansi"
+ansible_user:                 {{ lookup('file', "{{ inventory_dir }}/../secret/credentials/{{ item.invocation.module_args.name }}/ansible_account/username") }}
+ansible_ssh_private_key_file: "{% raw %}{{ inventory_dir }}{% endraw %}/../secret/credentials/{{ item.invocation.module_args.name }}/ansible_account/ssh-key"
 ansible_become_method:        sudo
