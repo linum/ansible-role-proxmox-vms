@@ -252,7 +252,7 @@
 - name: Create initial Ansible User Account SSH key(s)
   connection: local
   openssh_keypair:
-    path: "{{ inventory_dir }}/../secret/credentials/{{ item.item.key }}ansible_account/ssh-key"
+    path: "{{ inventory_dir }}/../secret/credentials/{{ item.item.key }}/ansible_account/ssh-key"
     comment: Ansibe User Account
     type: ed25519
     #force: yes
